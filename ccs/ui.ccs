@@ -1,0 +1,21 @@
+<Solution>
+  <PropertyGroup Name="ui" Version="3.10.0.0" Type="CocosStudio" />
+  <SolutionFolder>
+    <Group ctype="ResourceGroup">
+      <RootFolder Name=".">
+        <Folder Name="res">
+          <Folder Name="astc">
+            <Image Name="bg.png" />
+          </Folder>
+          <Folder Name="csb">
+            <Project Name="MainScene.csd" Type="Scene" />
+          </Folder>
+          <Folder Name="etc" />
+          <Folder Name="font">
+            <TTF Name="VonwaonBitmap-16px.ttf" />
+          </Folder>
+        </Folder>
+      </RootFolder>
+    </Group>
+  </SolutionFolder>
+</Solution>

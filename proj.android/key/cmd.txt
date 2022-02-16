@@ -1,0 +1,1 @@
+keytool -genkey -alias hjx -keypass 2279365065 -keyalg RSA -keysize 2048 -validity 36500 -keystore D:\project\cocos2dGame\proj.android\key\release.jks -storepass 2279365065

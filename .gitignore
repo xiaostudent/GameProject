@@ -1,0 +1,10 @@
+proj.android/app/build
+cocos2d/cocos/platform/android/libcocos2dx/build
+proj.win32/Release/Resources
+game.apk
+src/app
+src/core
+src/config
+src/update
+
+

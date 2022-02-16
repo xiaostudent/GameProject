@@ -1,0 +1,12 @@
+{
+  "init_cfg": {
+    "isLandscape": true,
+    "name": "像素王国",
+    "width": 1218,
+    "height": 563,
+	"designWidth":960,
+	"designHeight":640,
+	"ftp":60,
+	"writablePath":"zhiPai"
+  }
+}
