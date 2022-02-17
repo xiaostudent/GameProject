@@ -1,4 +1,4 @@
---2279365065@qq.com
+
 DEBUG = 2                        -- 0 - disable debug info, 1 - less debug info, 2 - verbose debug info
 CC_USE_FRAMEWORK = true          -- use framework, will disable all deprecated API, false - use legacy API
 CC_SHOW_FPS = true               -- show FPS on screen
@@ -23,6 +23,7 @@ CC_DESIGN_RESOLUTION = {
 spriteFrameCache=cc.SpriteFrameCache:getInstance()
 
 DEBUG_MEM=true
+local  needUpdate = true
 
 
 if DEBUG_MEM then
@@ -50,20 +51,41 @@ local function loadLuaZip( ... )
     loadChunksFromZIP("config32.hjx")
     loadChunksFromZIP("app32.hjx")
     require "cocos.init"
+    require("app.config.init")
+    cc.disable_global()   --延迟屏蔽
+    require("app.widget.common.init")
+    require("app.MainApp")
+end
+
+
+local function enterGame( ... )
+    -- body
+    if GameScene:isRunning() then
+        loadLuaZip()
+    else
+        local function onNodeEvent(event)
+            if event == "enter" then
+                loadLuaZip()
+            elseif event == "exit" then
+
+            end
+        end
+        GameScene:registerScriptHandler(onNodeEvent)
+    end
 end
 
 
 local function main()
-    require("update.UpdateController")
-    GameController:show("update")
-    require("update")(function ( ... )
-        -- body
-        loadLuaZip()
-        require("app.config.init")
-        cc.disable_global()   --延迟屏蔽
-        require("app.widget.common.init")
-        require("app.MainApp")
-    end)
+    if needUpdate then
+        require("update.UpdateController")
+        GameController:show("update")
+        require("update")(function ( ... )
+            -- body
+            enterGame()
+        end)
+    else
+        enterGame()
+    end
 end
 
 

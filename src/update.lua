@@ -1,4 +1,3 @@
---2279365065@qq.com
 require("core.util.json")
 local Array=require("core.ADT.Array")
 local functions=require("core.util.functions")
@@ -98,6 +97,9 @@ end
 local function checkFile( data, path )
 	-- body
 	local size=File.size(path)
+	if not size then   --android 文件大小为空
+		size=cc.FileUtils:getInstance():getFileSize(path)
+	end
 	if data.size==size then
 		return true
 	end
