@@ -1,16 +1,16 @@
-require("core.util.json")
-local Array=require("core.ADT.Array")
-local functions=require("core.util.functions")
-local Http=require("core.http.Http")
-local File=require("core.util.File")
+require("update.util.json")
+local controller=require("update.update")
+local Array={}
+local Http=require("update.util.Http")
+local File=require("update.util.File")
 local FileUtils=cc.FileUtils:getInstance()
 local writablePath=cc.FileUtils:getInstance():getWritablePath()
 local versionPath=writablePath.."/version.manifest"
 local M={}
 M.packageUrl=""
 M.enterGame=nil
-LoadList=Array:ctor()
-moveFileList=Array:ctor()
+LoadList={}
+moveFileList={}
 
 local function getPackageUrl()
 	-- body
@@ -25,12 +25,14 @@ local function HttpLoad(_url,func)
 	end,function (status,url)
 		-- body
 		print("http:"..url .."  error!")
-		showTips("游戏更新失败！请查看网络连接")
+		--showTips("游戏更新失败！请查看网络连接")
+		controller.emit("update_module",{cmd="update_error",data="游戏更新失败！请查看网络连接"})
 	end,function ()
 		-- body
 	end,function ()
 		print("http:"..url .."  time out!")
-		showTips("游戏更新失败！请查看网络连接")
+		--showTips("游戏更新失败！请查看网络连接")
+		controller.emit("update_module",{cmd="update_error",data="游戏更新失败！请查看网络连接"})
 	end)
 end
 
@@ -80,9 +82,23 @@ local function loadGameMainFest( vers ,func)
 	loadRemoteFile(path,func)
 end
 
+local function split(input, delimiter)
+    input = tostring(input)
+    delimiter = tostring(delimiter)
+    if (delimiter=='') then return false end
+    local pos,arr = 0, {}
+    -- for each divider found
+    for st,sp in function() return string.find(input, delimiter, pos, true) end do
+        table.insert(arr, string.sub(input, pos, st - 1))
+        pos = sp + 1
+    end
+    table.insert(arr, string.sub(input, pos))
+    return arr
+end
+
 local function createDirectory( filePath )
 	-- body
-	local arr=functions.split(filePath,"/")
+	local arr=split(filePath,"/")
 	local path=writablePath
 
 	for i,v in ipairs(arr) do
@@ -114,13 +130,14 @@ local function loadGameFile(_data ,func)
 	local check=function ()
 	    if checkFile(_data,writablePath.."tmp/"..filePath) then
 	    	print("文件校验成功："..writablePath.."tmp/"..filePath)
-	    	moveFileList:push({src=writablePath.."tmp/"..filePath,des=writablePath.."/"..filePath,filePath=filePath})
+	    	table.insert(moveFileList,{src=writablePath.."tmp/"..filePath,des=writablePath.."/"..filePath,filePath=filePath})
 	    	if func then func() end
 	    else
 	    	_data.loadTime=_data.loadTime+1
 	    	print("文件校验失败："..writablePath.."tmp/"..filePath)
 	    	if _data.loadTime>=3 then
 	    		print("更新失败！")
+	    		controller.emit("update_module",{cmd="update_error",data="文件校验失败"})
 	    		return
 	    	else
 	    		File.removeFile(writablePath.."tmp/"..filePath)
@@ -143,8 +160,8 @@ end
 
 local function moveFile( currVersion,nextVersion )
 	-- body
-	if  moveFileList:length()>0 then
-		local data=moveFileList:shift()
+	if  #moveFileList>0 then
+		local data = table.remove(moveFileList,1)
 		createDirectory(data.filePath)
 		local fileData=File.read(data.src,"rb")
 		File.write(data.des,fileData)
@@ -165,18 +182,18 @@ end
 
 local function loadFile(currVersion,nextVersion)
 	-- body
-	if LoadList:length()>0 then
-		local data=LoadList:shift()
+	if #LoadList>0 then
+		local data=table.remove(LoadList,1)
 		loadGameFile(data,function ( ... )
 			-- body
-			Event:emit("update_module",{cmd="update_loadFile",data=data})
+			controller.emit("update_module",{cmd="update_loadFile",data=data})
 			loadFile(currVersion,nextVersion)
 		end)
 	else
 		print("热更文件下载完成")
 		loadGameMainFest(nextVersion,function ( ... )
 			-- body
-			Event:emit("update_module",{cmd="update_endLoad"})
+			controller.emit("update_module",{cmd="update_endLoad"})
 			print("对比版本md5:",currVersion,nextVersion)
 			local currVerData=loadVersionMainfest(writablePath.."version/"..currVersion..".manifest")
 			local nextVerData=loadVersionMainfest(writablePath.."version/"..nextVersion..".manifest")
@@ -189,19 +206,19 @@ local function loadFile(currVersion,nextVersion)
 				end
 			end
 
-			local changeList=Array:ctor()
+			local changeList={}
 			for k,v in pairs(nextVerData.assets) do
 				if  currVerData.assets[k] then  
 					if currVerData.assets[k].md5 ~= v.md5 then
-						changeList:push(k)
+						table.insert(changeList,k)
 					end
 				else
-					changeList:push(k)
+					table.insert(changeList,k)
 				end
 			end
 
 			--简单二次校验
-			if changeList:length()== moveFileList:length() then
+			if #changeList== #moveFileList then
 				moveFile(currVersion,nextVersion)
 			else
 				print("校验失败！")
@@ -221,10 +238,10 @@ local function startLoadVerFile(currVersion,nextVersion)
 			v.path=k
 			v.version=nextVersion
 			v.loadTime=0
-			LoadList:push(v)
+			table.insert(LoadList,v)
 		end
 		--LoadList:print()
-		Event:emit("update_module",{cmd="update_startLoad",data=tab.assets})
+		controller.emit("update_module",{cmd="update_startLoad",data=tab.assets})
 		loadFile(currVersion,nextVersion)
 	end)
 end
@@ -240,10 +257,12 @@ local function loadRemoteVersionMainfest(mainVersion,secondVersion,version,func)
 		else
 			if version == remotversionData.version then
 				print("进入游戏")
-				Event:emit("update_module",{cmd="update_end",data=version})
+				controller.emit("update_module",{cmd="update_end",data=version})
+				Http.stopSend()
 				if M.enterGame then 
 					M.enterGame()
 				end
+				controller.clear()
 			else
 				print("更新游戏")
 				if not FileUtils:isDirectoryExist(writablePath.."tmp") then FileUtils:createDirectory(writablePath.."tmp") end
@@ -259,7 +278,7 @@ local function loadRemoteVersionMainfest(mainVersion,secondVersion,version,func)
 						tag=true
 					end
 				end
-				Event:emit("update_module",{cmd="update_next_version",data=nextVersion})
+				controller.emit("update_module",{cmd="update_next_version",data=nextVersion})
 				startLoadVerFile(version,nextVersion)
 			end
 		end
@@ -270,8 +289,8 @@ end
 function M.update( func )
 	-- body
 	M.enterGame=func
-	LoadList:clear()
-	moveFileList:clear()
+	LoadList={}
+	moveFileList={}
 	moveToWritablePath()
 	local t=loadVersionMainfest(versionPath)
 	local mainVersion=tonumber(t.mainVersion)
@@ -279,7 +298,7 @@ function M.update( func )
 	local packageUrl=t.packageUrl
 	local version=t.version
 	print(mainVersion,secondVersion,version,packageUrl)
-	Event:emit("update_module",{cmd="update_version",data=version})
+	controller.emit("update_module",{cmd="update_version",data=version})
 	M.packageUrl=packageUrl
 	loadGameMainFest(version,function ( ... )
 		-- body

@@ -20,6 +20,20 @@ CC_DESIGN_RESOLUTION = {
     end
 }
 
+local function getRunningScene()
+    -- body
+    local scene=nil
+    if cc.Director:getInstance():getRunningScene()  then
+        scene=cc.Director:getInstance():getRunningScene()
+    else
+        scene=cc.Scene:create()
+        cc.Director:getInstance():runWithScene(scene)
+    end
+    return scene
+end
+
+GameScene=getRunningScene()
+
 spriteFrameCache=cc.SpriteFrameCache:getInstance()
 
 DEBUG_MEM=true
@@ -41,12 +55,13 @@ cc.FileUtils:getInstance():setPopupNotify(false)
 print("jit的版本号为",jit.version,(jit.version >= "LuaJIT 2.1"),jit.arch)
 cc.FileUtils:getInstance():addSearchPath(cc.FileUtils:getInstance():getWritablePath().."Resources/")
 cc.FileUtils:getInstance():addSearchPath(cc.FileUtils:getInstance():getWritablePath().."Resources/res")
-loadChunksFromZIP("core32.hjx")
+
 loadChunksFromZIP("update32.hjx")
-require "core.init"
 require("socket")
 
 local function loadLuaZip( ... )
+    loadChunksFromZIP("core32.hjx")
+    require "core.init"
 	loadChunksFromZIP("cocos32.hjx")
     loadChunksFromZIP("config32.hjx")
     loadChunksFromZIP("app32.hjx")
@@ -77,8 +92,6 @@ end
 
 local function main()
     if needUpdate then
-        require("update.UpdateController")
-        GameController:show("update")
         require("update")(function ( ... )
             -- body
             enterGame()
